@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tim4_postgres
+    environment:
+      POSTGRES_USER: tim4
+      POSTGRES_PASSWORD: tim4pass
+      POSTGRES_DB: tim4db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: tim4_qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrantdata:/qdrant/storage
+
+  redis:
+    image: redis:7-alpine
+    container_name: tim4_redis
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tim4_api
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - qdrant
+      - redis
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tim4_worker
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - qdrant
+      - redis
+    command: >
+      celery -A app.celery_app.celery worker --loglevel=INFO
+
+volumes:
+  pgdata:
+  qdrantdata:
