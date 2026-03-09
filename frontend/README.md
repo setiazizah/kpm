@@ -1,73 +1,67 @@
-# React + TypeScript + Vite
+# TIM4 MVP Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Prototipe MVP frontend untuk proyek AITF, dibangun dengan React, TypeScript, Vite, dan Tailwind CSS.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 18** — UI library
+- **TypeScript 5** — Type safety
+- **Vite 5** — Build tool & dev server (port 3000)
+- **Tailwind CSS 3** — Utility-first styling
+- **Recharts** — Library grafik/chart
+- **Lucide React** — Icon library
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Install dependencies:
 
-## Expanding the ESLint configuration
+   ```bash
+   npm install
+   ```
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+2. Tambahkan font Samsung Sans ke `src/assets/fonts/SamsungSans-Regular.woff2`
+   (font tidak disertakan karena alasan lisensi — unduh sendiri dan letakkan di folder tersebut).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+3. Jalankan dev server:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+   ```bash
+   npm run dev
+   ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+   Aplikasi berjalan di [http://localhost:3000](http://localhost:3000).
+
+## Scripts
+
+| Command             | Keterangan                        |
+| ------------------- | --------------------------------- |
+| `npm run dev`       | Menjalankan dev server            |
+| `npm run build`     | Build production ke folder `dist` |
+| `npm run preview`   | Preview hasil build               |
+| `npm run typecheck` | Cek tipe TypeScript tanpa build   |
+
+## Struktur Folder
+
+```
+src/
+├── api/            # Fungsi pemanggilan API
+├── auth/           # Utilitas autentikasi
+├── assets/fonts/   # File webfont (tidak di-commit)
+├── components/     # Komponen UI yang dapat digunakan ulang
+│   └── ui/         # Komponen primitif (Button, dll.)
+├── features/       # Komponen per fitur/domain
+├── hooks/          # Custom React hooks
+├── lib/            # Utilitas umum (format, helper)
+├── pages/          # Halaman/route utama
+├── styles/         # File CSS global (Tailwind)
+└── main.tsx        # Entry point aplikasi
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Desain Token (Warna)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| Token        | Hex       |
+| ------------ | --------- |
+| `primary`    | `#196ECD` |
+| `surface`    | `#F7F9FB` |
+| `accent`     | `#CDE9F6` |
+| `background` | `#FFFFFF` |
+| `text`       | `#000000` |
