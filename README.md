@@ -69,8 +69,8 @@ kpm/
 ### 1. Clone repo
 
 ```bash
-git clone https://gitlab.com/aitf2026/tim4-rag-mvp.git
-cd tim4-rag-mvp/kpm
+git clone [https://gitlab.com/aitf2026/tim4-rag-mvp.git](https://github.com/setiazizah/kpm.git)
+cd kpm
 ```
 
 ### 2. Buat file `.env`
