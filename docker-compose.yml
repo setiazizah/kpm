@@ -25,6 +25,48 @@ services:
     ports:
       - "6379:6379"
 
+  # ── Prefect server (UI + API at :4200) ──────────────────────────────────────
+  prefect-server:
+    image: prefecthq/prefect:3-latest
+    container_name: tim4_prefect_server
+    command: prefect server start --host 0.0.0.0
+    environment:
+      PREFECT_HOME: /root/.prefect
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://tim4:tim4pass@postgres:5432/tim4db
+    ports:
+      - "4200:4200"
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  # ── Prefect worker (executes flows) ─────────────────────────────────────────
+  prefect-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tim4_prefect_worker
+    env_file:
+      - .env
+    environment:
+      PREFECT_API_URL: http://prefect-server:4200/api
+    depends_on:
+      prefect-server:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
+    command: >
+      prefect worker start --pool default-process-pool
+
+  # ── FastAPI application ──────────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -32,15 +74,23 @@ services:
     container_name: tim4_api
     env_file:
       - .env
+    environment:
+      PREFECT_API_URL: http://prefect-server:4200/api
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - qdrant
-      - redis
+      prefect-server:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
     command: >
       uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 
+  # ── Celery worker (kept for other background tasks) ──────────────────────────
   worker:
     build:
       context: .

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   Upload, FileDown, Wand2, Calendar, Clock, BarChart2,
   Target, ClipboardList, FileText, ExternalLink, AlertCircle,
+  BookOpen, Link2,
 } from 'lucide-react'
 import Button from '../components/ui/Button'
 import RiskBadge from '../components/ui/RiskBadge'
@@ -210,6 +211,29 @@ export default function NarasiPage() {
               </span>
             </div>
           </div>
+
+          {/* Referensi Regulasi */}
+          {session.regulasi.length > 0 && (
+            <div className="bg-white border border-border rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-border flex items-center gap-1.5 text-[13px] font-semibold text-text-main">
+                <BookOpen size={13} className="text-text-muted" /> Referensi Regulasi
+              </div>
+              <div className="p-3 flex flex-col gap-1.5">
+                {session.regulasi.map((reg, i) => (
+                  <div key={i} className="bg-surface border border-border rounded-lg px-3 py-2">
+                    <div className="flex items-start gap-1.5">
+                      <Link2 size={10} className="text-primary mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10.5px] font-mono font-semibold text-primary leading-tight">{reg.nomor}</div>
+                        <div className="text-[11px] text-text-main leading-snug mt-0.5">{reg.judul}</div>
+                        <div className="text-[10px] font-mono text-text-muted mt-0.5">{reg.lembaga} · {reg.tahun}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Error */}
           {session.errorMessage && (

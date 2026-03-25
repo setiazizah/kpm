@@ -22,6 +22,13 @@ export interface RetrievedDoc {
   score:   number | null
 }
 
+export interface RegulasiRef {
+  nomor:   string   // e.g. "UU No. 22 Tahun 2001"
+  judul:   string   // e.g. "Minyak dan Gas Bumi"
+  lembaga: string   // e.g. "DPR RI"
+  tahun:   number
+}
+
 export interface NarasiData {
   isu:        string
   narasi:     string
@@ -71,6 +78,7 @@ export interface AnalyzeResponse {
   session_id:     string
   narasi:         NarasiData | null
   retrieved_docs: RetrievedDoc[]
+  regulasi:       RegulasiRef[]
   export_url:     string | null
   step_meta:      Record<string, StepMeta>
   message:        string | null
@@ -116,6 +124,7 @@ export interface WorkflowSession {
   step:          WorkflowStep
   narasi:        NarasiData | null
   retrievedDocs: RetrievedDoc[]
+  regulasi:      RegulasiRef[]
   stratkom:      StratkomData | null
   revisedDraft:  string | null
   exportUrl:     string | null

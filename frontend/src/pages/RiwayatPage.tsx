@@ -26,6 +26,12 @@ const typeIconBg = {
   brief: 'bg-warning-dim'
 }
 
+const typeBadge = {
+  narasi: 'bg-primary-dim text-primary',
+  stratkom: 'bg-success-dim text-success',
+  brief: 'bg-warning-dim text-warning'
+}
+
 const navTarget: Record<string, 'narasi' | 'stratkom' | 'brief'> = {
   narasi: 'narasi',
   stratkom: 'stratkom',
@@ -65,7 +71,18 @@ export default function RiwayatPage() {
               {typeIcon[item.type]}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-semibold text-text-main truncate">{item.title}</div>
+              <div className="flex items-center gap-2 min-w-0">
+                {(() => {
+                  const colonIdx = item.title.indexOf(':')
+                  if (colonIdx === -1) return <span className="text-[13px] font-semibold text-text-main truncate">{item.title}</span>
+                  const prefix = item.title.slice(0, colonIdx)
+                  const rest = item.title.slice(colonIdx + 1).trimStart()
+                  return <>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap flex-shrink-0 ${typeBadge[item.type]}`}>{prefix}</span>
+                    <span className="text-[13px] font-semibold text-text-main truncate">{rest}</span>
+                  </>
+                })()}
+              </div>
               <div className="text-[10.5px] font-mono text-text-muted mt-0.5">{item.meta}</div>
             </div>
             <RiskBadge level={item.risk} />
