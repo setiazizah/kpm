@@ -1,15 +1,29 @@
 services:
   postgres:
     image: postgres:16
-    container_name: tim4_postgres
+    container_name: team4db
     environment:
-      POSTGRES_USER: tim4
-      POSTGRES_PASSWORD: tim4pass
-      POSTGRES_DB: tim4db
+      POSTGRES_USER: team4
+      POSTGRES_PASSWORD: team4pass
+      POSTGRES_DB: team4db
     ports:
-      - "5432:5432"
+      - "55432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: team4_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: team4@ugm.com
+      PGADMIN_DEFAULT_PASSWORD: team4pass
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    volumes:
+      - pgadmindata:/var/lib/pgadmin
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -57,4 +71,5 @@ services:
 
 volumes:
   pgdata:
+  pgadmindata:
   qdrantdata:

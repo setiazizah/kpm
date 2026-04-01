@@ -159,11 +159,16 @@ async def run_batch(
             except Exception as exc:
                 log.error("platform_crawl_failed", platform=platform_key, error=str(exc))
                 total_errors += 1
+        
         else:
             # ── Single-keyword mode (Crawl4AI / News) ──
             for kw in keywords:
+                items = []
+                keyword_errors = 0
+
                 try:
                     items = await crawler.crawl(kw.keyword_text, batch_id)
+
                     if not dry_run:
                         async with get_db_context() as session:
                             inserted_raw = await repo.upsert_raw_content(session, items)
@@ -172,6 +177,7 @@ async def run_batch(
                             # ── Resources & Manifests ──
                             for item in items:
                                 m_urls = item.media_urls or {}
+
                                 # Image Manifest
                                 if "thumbnail" in m_urls and "bronze/images" in str(m_urls["thumbnail"]):
                                     storage_p = m_urls["thumbnail"]
@@ -187,15 +193,29 @@ async def run_batch(
                             # ── Comments ──
                             if platform_key in COMMENT_PLATFORMS:
                                 for item in items:
-                                    if not item.success: continue
-                                    comments = await crawler.crawl_comments(item.content_id, item.url_source, batch_id)
+                                    if not item.success:
+                                        continue
+                                    comments = await crawler.crawl_comments(
+                                        item.content_id,
+                                        item.url_source,
+                                        batch_id
+                                    )
                                     if comments:
                                         inserted_c = await repo.bulk_insert_comments(session, comments)
                                         total_comments += inserted_c
-                    total_errors += sum(1 for i in items if not i.success)
+
+                    keyword_errors = sum(1 for i in items if not i.success)
+                    total_errors += keyword_errors
+
                 except Exception as exc:
-                    log.error("keyword_crawl_failed", platform=platform_key, keyword=kw.keyword_text, error=str(exc))
+                    keyword_errors = 1
                     total_errors += 1
+                    log.error(
+                        "keyword_crawl_failed",
+                        platform=platform_key,
+                        keyword=kw.keyword_text,
+                        error=str(exc),
+                    )
 
                 if not dry_run:
                     log.debug(
@@ -203,7 +223,7 @@ async def run_batch(
                         platform=platform_key,
                         keyword=kw.keyword_text,
                         raw=len(items),
-                        errors=sum(1 for i in items if not i.success),
+                        errors=keyword_errors,
                     )
 
     # ── Complete batch manifest ──
