@@ -7,7 +7,7 @@ interface Props {
 
 export default function Card({ children, className = '' }: Props) {
   return (
-    <div className={`bg-white border border-border rounded-xl shadow-card overflow-hidden ${className}`}>
+    <div className={`bg-white border border-border rounded-2xl shadow-card overflow-hidden ${className}`}>
       {children}
     </div>
   )
@@ -15,7 +15,7 @@ export default function Card({ children, className = '' }: Props) {
 
 export function CardHeader({ children, className = '' }: Props) {
   return (
-    <div className={`px-5 py-3.5 border-b border-border flex items-center justify-between ${className}`}>
+    <div className={`px-5 py-4 border-b border-border flex items-center justify-between ${className}`}>
       {children}
     </div>
   )
@@ -23,7 +23,7 @@ export function CardHeader({ children, className = '' }: Props) {
 
 export function CardTitle({ children, className = '' }: Props) {
   return (
-    <span className={`text-[13px] font-bold text-text-main tracking-tight ${className}`}>
+    <span className={`text-[13px] font-bold text-text-main ${className}`}>
       {children}
     </span>
   )

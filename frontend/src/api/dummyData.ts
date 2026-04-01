@@ -7,6 +7,7 @@ import type {
   GenerateStratkomResponse,
   ReviseResponse,
   ExportContentResponse,
+  RegulasiRef,
 } from '../types/workflow'
 
 // Delay helper
@@ -95,6 +96,32 @@ const DUMMY_RETRIEVED_DOCS = {
   generic: [
     { doc_id: 'd-031', content: 'Panduan Manajemen Komunikasi Krisis Pemerintah: respons pertama dalam 2 jam, klarifikasi resmi dalam 24 jam, pembaruan berkala setiap 12 jam.', source: 'Kemkominfo', score: 0.85 },
     { doc_id: 'd-032', content: 'Strategi komunikasi digital pemerintah 2024: prioritas konten edukatif, penggunaan infografis dan video pendek, penguatan kanal resmi.', source: 'Kemkominfo', score: 0.80 },
+  ],
+}
+
+const DUMMY_REGULASI: Record<string, RegulasiRef[]> = {
+  bbm: [
+    { nomor: 'UU No. 22 Tahun 2001',    judul: 'Minyak dan Gas Bumi',                              lembaga: 'DPR RI',               tahun: 2001 },
+    { nomor: 'PP No. 36 Tahun 2004',     judul: 'Kegiatan Usaha Hilir Minyak dan Gas Bumi',          lembaga: 'Presiden RI',          tahun: 2004 },
+    { nomor: 'Perpres No. 191 Tahun 2014', judul: 'Penyediaan, Pendistribusian, dan Harga Jual Eceran BBM', lembaga: 'Presiden RI', tahun: 2014 },
+    { nomor: 'Permen ESDM No. 34 Tahun 2022', judul: 'Tata Cara Penetapan Harga Jual Eceran BBM',   lembaga: 'Kementerian ESDM',     tahun: 2022 },
+  ],
+  umkm: [
+    { nomor: 'UU No. 20 Tahun 2008',     judul: 'Usaha Mikro, Kecil, dan Menengah',                 lembaga: 'DPR RI',               tahun: 2008 },
+    { nomor: 'UU No. 27 Tahun 2022',     judul: 'Pelindungan Data Pribadi',                         lembaga: 'DPR RI',               tahun: 2022 },
+    { nomor: 'PP No. 7 Tahun 2021',      judul: 'Kemudahan, Perlindungan, dan Pemberdayaan UMKM',   lembaga: 'Presiden RI',          tahun: 2021 },
+    { nomor: 'Perpres No. 2 Tahun 2022', judul: 'Pengembangan Kewirausahaan Nasional 2021–2025',     lembaga: 'Presiden RI',          tahun: 2022 },
+  ],
+  pangan: [
+    { nomor: 'UU No. 18 Tahun 2012',     judul: 'Pangan',                                           lembaga: 'DPR RI',               tahun: 2012 },
+    { nomor: 'PP No. 17 Tahun 2015',     judul: 'Ketahanan Pangan dan Gizi',                        lembaga: 'Presiden RI',          tahun: 2015 },
+    { nomor: 'Perpres No. 66 Tahun 2021', judul: 'Badan Pangan Nasional',                           lembaga: 'Presiden RI',          tahun: 2021 },
+    { nomor: 'Permendag No. 57 Tahun 2017', judul: 'Penetapan Harga Eceran Tertinggi Beras',        lembaga: 'Kementerian Perdagangan', tahun: 2017 },
+  ],
+  generic: [
+    { nomor: 'UU No. 14 Tahun 2008',     judul: 'Keterbukaan Informasi Publik',                     lembaga: 'DPR RI',               tahun: 2008 },
+    { nomor: 'UU No. 25 Tahun 2009',     judul: 'Pelayanan Publik',                                 lembaga: 'DPR RI',               tahun: 2009 },
+    { nomor: 'PP No. 61 Tahun 2010',     judul: 'Pelaksanaan UU Keterbukaan Informasi Publik',       lembaga: 'Presiden RI',          tahun: 2010 },
   ],
 }
 
@@ -310,6 +337,7 @@ export async function dummyAnalyze(query: string, sessionId: string): Promise<An
     session_id:     sessionId,
     narasi:         DUMMY_NARASI[topic],
     retrieved_docs: DUMMY_RETRIEVED_DOCS[topic] || DUMMY_RETRIEVED_DOCS.generic,
+    regulasi:       DUMMY_REGULASI[topic] || DUMMY_REGULASI.generic,
     export_url:     null,
     step_meta: {
       retrieval: { status: 'success', latency_ms: 342,  fallback_used: false },

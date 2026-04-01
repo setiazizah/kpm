@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Printer, Upload, ExternalLink, AlertCircle, Download } from 'lucide-react'
+import { Printer, Upload, ExternalLink, AlertCircle, Download, BookOpen } from 'lucide-react'
 import Button from '../components/ui/Button'
 import RiskBadge from '../components/ui/RiskBadge'
 import Spinner from '../components/ui/Spinner'
@@ -166,6 +166,24 @@ export default function BriefPage() {
               <pre className="text-[11.5px] font-mono text-text-main whitespace-pre-wrap leading-relaxed bg-surface border border-border rounded-lg p-4 max-h-64 overflow-y-auto">
                 {draft}
               </pre>
+            </div>
+          )}
+
+          {/* Referensi Regulasi */}
+          {session.regulasi.length > 0 && (
+            <div className="pb-5 border-b border-border">
+              <div className="text-[9px] font-mono uppercase tracking-[2px] text-text-muted mb-3 flex items-center gap-1.5">
+                <BookOpen size={9} /> Referensi Regulasi &amp; Dokumen
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {session.regulasi.map((reg, i) => (
+                  <div key={i} className="bg-surface border border-border rounded px-2.5 py-1.5">
+                    <div className="text-[10px] font-mono font-semibold text-primary leading-tight">{reg.nomor}</div>
+                    <div className="text-[11px] text-text-main leading-snug mt-0.5">{reg.judul}</div>
+                    <div className="text-[9.5px] font-mono text-text-muted mt-0.5">{reg.lembaga} · {reg.tahun}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react'
 import type { Page } from '../types'
 import type { WorkflowSession, WorkflowChannel, WorkflowTone } from '../types/workflow'
 import {
@@ -8,6 +8,8 @@ import {
   exportContent,
   newSessionId,
 } from '../api/workflow'
+import { setSelectedIsu } from '../store/isuStore'
+import { getUserId } from '../auth/auth'
 
 // ----------------------------------------------------------------
 // Context types
@@ -18,6 +20,8 @@ interface AppContextType {
   navigate: (p: Page) => void
 
   session:  WorkflowSession
+  chatKey:  number
+  newAnalysis: () => void
 
   runAnalyze:          (query: string, channel: WorkflowChannel, tone: WorkflowTone) => Promise<WorkflowSession['narasi']>
   runGenerateStratkom: () => Promise<void>
@@ -33,13 +37,14 @@ interface AppContextType {
 function emptySession(): WorkflowSession {
   return {
     sessionId:     newSessionId(),
-    userId:        'u-001',
+    userId:        getUserId(),
     query:         '',
     channel:       'press',
     tone:          'formal',
     step:          'idle',
     narasi:        null,
     retrievedDocs: [],
+    regulasi:      [],
     stratkom:      null,
     revisedDraft:  null,
     exportUrl:     null,
@@ -56,6 +61,8 @@ const AppContext = createContext<AppContextType>({
   page:                'dashboard',
   navigate:            () => {},
   session:             emptySession(),
+  chatKey:             0,
+  newAnalysis:         () => {},
   runAnalyze:          async () => null,
   runGenerateStratkom: async () => {},
   runRevise:           async () => {},
@@ -66,9 +73,15 @@ const AppContext = createContext<AppContextType>({
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [page, setPage] = useState<Page>('dashboard')
   const [session, setSession] = useState<WorkflowSession>(emptySession)
+  const [chatKey, setChatKey] = useState(0)
+  const sessionRef = useRef<WorkflowSession>(session)
 
   const patch = useCallback((updates: Partial<WorkflowSession>) => {
-    setSession(prev => ({ ...prev, ...updates }))
+    setSession(prev => {
+      const next = { ...prev, ...updates }
+      sessionRef.current = next
+      return next
+    })
   }, [])
 
   // ── 1. Tanya Isu ──────────────────────────────────────────────
@@ -78,17 +91,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     tone:    WorkflowTone,
   ): Promise<WorkflowSession['narasi']> => {
     const sid = newSessionId()
-    setSession(prev => ({
-      ...prev,
-      step: 'analyzing', query, channel, tone, sessionId: sid,
-      narasi: null, retrievedDocs: [], stratkom: null,
-      revisedDraft: null, exportUrl: null, errorMessage: null,
-    }))
+    setSession(prev => {
+      const next = {
+        ...prev,
+        step: 'analyzing' as const, query, channel, tone, sessionId: sid,
+        narasi: null, retrievedDocs: [], stratkom: null,
+        revisedDraft: null, exportUrl: null, errorMessage: null,
+      }
+      sessionRef.current = next
+      return next
+    })
 
     try {
       const res = await analyzeIssue({
         session_id:   sid,
-        user_id:      'u-001',
+        user_id:      getUserId(),
         query,
         channel,
         tone,
@@ -104,6 +121,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         step:          'analyzed',
         narasi:        res.narasi,
         retrievedDocs: res.retrieved_docs ?? [],
+        regulasi:      res.regulasi ?? [],
         stepMeta:      res.step_meta,
         exportUrl:     res.export_url,
         errorMessage:  null,
@@ -120,9 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     patch({ step: 'stratkom_loading', errorMessage: null })
 
     try {
-      const snap = await new Promise<WorkflowSession>(resolve =>
-        setSession(prev => { resolve(prev); return prev })
-      )
+      const snap = sessionRef.current
       const res = await generateStratkom(
         { session_id: snap.sessionId },
         snap.query,
@@ -153,9 +169,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     patch({ step: 'revising', errorMessage: null })
 
     try {
-      const snap = await new Promise<WorkflowSession>(resolve =>
-        setSession(prev => { resolve(prev); return prev })
-      )
+      const snap = sessionRef.current
       const res = await revise(
         { session_id: snap.sessionId, export_format: exportFormat, user_edits: userEdits },
         snap.query,
@@ -183,9 +197,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     contentType: 'narasi' | 'stratkom' | 'draft',
     fmt:         'docx' | 'pdf',
   ): Promise<string | null> => {
-    const snap = await new Promise<WorkflowSession>(resolve =>
-      setSession(prev => { resolve(prev); return prev })
-    )
+    const snap = sessionRef.current
     try {
       const res = await exportContent({
         session_id:   snap.sessionId,
@@ -198,13 +210,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const resetSession = useCallback(() => setSession(emptySession()), [])
+  const resetSession = useCallback(() => {
+    const s = emptySession()
+    sessionRef.current = s
+    setSession(s)
+  }, [])
+
+  const newAnalysis = useCallback(() => {
+    const s = emptySession()
+    sessionRef.current = s
+    setSession(s)
+    setSelectedIsu(null)
+    setChatKey(k => k + 1)
+    setPage('chat')
+  }, [])
 
   return (
     <AppContext.Provider value={{
       page,
       navigate:            setPage,
       session,
+      chatKey,
+      newAnalysis,
       runAnalyze,
       runGenerateStratkom,
       runRevise,

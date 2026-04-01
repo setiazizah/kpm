@@ -9,11 +9,11 @@ interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClass: Record<Variant, string> = {
   primary:
-    'bg-primary text-white hover:bg-primary-hover shadow-sm',
+    'bg-primary text-white hover:bg-primary-hover shadow-[0_4px_16px_rgba(67,24,255,0.3)]',
   ghost:
-    'bg-surface text-text-muted border border-border hover:bg-accent hover:text-primary',
+    'bg-white text-text-muted border border-border hover:bg-accent hover:text-primary shadow-card',
   danger:
-    'bg-danger-dim text-danger border border-red-200 hover:bg-red-100'
+    'bg-danger-dim text-danger border border-danger/20 hover:bg-danger/10'
 }
 
 const sizeClass = {
@@ -25,7 +25,7 @@ export default function Button({ variant = 'primary', size = 'md', className = '
   return (
     <button
       {...props}
-      className={`inline-flex items-center gap-1.5 rounded-lg font-medium transition-colors duration-150 disabled:opacity-50 cursor-pointer ${variantClass[variant]} ${sizeClass[size]} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-lg font-medium transition-colors duration-150 disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${variantClass[variant]} ${sizeClass[size]} ${className}`}
     />
   )
 }

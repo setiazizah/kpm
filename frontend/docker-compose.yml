@@ -1,0 +1,9 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aitf_frontend
+    ports:
+      - "3000:80"
+    restart: unless-stopped

@@ -1,248 +1,195 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Plus, Bot, User, FileText, AlertCircle } from 'lucide-react'
-import RiskBadge from '../components/ui/RiskBadge'
+import { Zap, AlertCircle } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
-import Button from '../components/ui/Button'
 import { useApp } from '../context/AppContext'
+import { getSelectedIsu, setSelectedIsu, ISU_DETAIL_MAP } from '../store/isuStore'
+import type { IsuDetail } from '../types/isu'
 import type { WorkflowChannel, WorkflowTone } from '../types/workflow'
-
-const CHANNEL_OPTIONS: { value: WorkflowChannel; label: string }[] = [
-  { value: 'press',    label: 'Press / Media' },
-  { value: 'social',   label: 'Social Media' },
-  { value: 'internal', label: 'Internal' },
-]
-
-const TONE_OPTIONS: { value: WorkflowTone; label: string }[] = [
-  { value: 'formal',      label: 'Formal' },
-  { value: 'semi-formal', label: 'Semi-Formal' },
-  { value: 'informal',    label: 'Informal' },
-]
-
-interface ChatMessage {
-  role:     'user' | 'assistant'
-  content:  string
-  isResult?: boolean
-  query?:   string
-}
+import { buildIsuAnalysis, getIsuChatReply, type ApiResult, type ChatMsg } from '../utils/chatHelpers'
+import ChatSidebar from '../components/chat/ChatSidebar'
+import ChatInputPanel from '../components/chat/ChatInputPanel'
+import IsuDetailResult from '../components/chat/IsuDetailResult'
+import ApiResultPanel from '../components/chat/ApiResultPanel'
+import ChatCompanion from '../components/chat/ChatCompanion'
 
 export default function ChatPage() {
-  const { navigate, runAnalyze, session } = useApp()
+  const { navigate, runAnalyze, session, resetSession } = useApp()
 
-  const [input,    setInput]    = useState('')
-  const [channel,  setChannel]  = useState<WorkflowChannel>('press')
-  const [tone,     setTone]     = useState<WorkflowTone>('formal')
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role:    'assistant',
-      content: 'Halo! Saya siap membantu menganalisis isu publik. Silakan ketik pertanyaan Anda tentang isu yang ingin dianalisis. Saya akan mengambil data dari basis pengetahuan yang sudah dikumpulkan.',
-    },
-  ])
+  const [isuDetail, setIsuDetail]     = useState<IsuDetail | null>(null)
+  const [isuAnalysis, setIsuAnalysis] = useState<ReturnType<typeof buildIsuAnalysis> | null>(null)
+  const [isuLoading, setIsuLoading]   = useState(false)
 
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const isLoading = session.step === 'analyzing'
+  const [input, setInput]       = useState('')
+  const [channel, setChannel]   = useState<WorkflowChannel>('press')
+  const [tone, setTone]         = useState<WorkflowTone>('formal')
+  const [apiResult, setApiResult] = useState<ApiResult | null>(null)
+  const [history, setHistory]   = useState<{ query: string; isu: string }[]>([])
 
+  const [messages, setMessages]     = useState<ChatMsg[]>([])
+  const [chatInput, setChatInput]   = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [narasiLoading, setNarasiLoading] = useState(false)
+
+  const sessionRef = useRef(session)
+  useEffect(() => { sessionRef.current = session }, [session])
+
+  const isApiLoading = session.step === 'analyzing'
+  const hasResult    = isuDetail !== null || apiResult !== null
+
+  // Cek isu dari store saat mount
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isLoading])
+    const isu = getSelectedIsu()
+    if (!isu) return
+    setSelectedIsu(null)
+    setIsuDetail(isu)
+    setInput(isu.nama)
+    setIsuLoading(true)
+    setTimeout(() => {
+      setIsuAnalysis(buildIsuAnalysis(isu))
+      setIsuLoading(false)
+      setMessages([{ role: 'bot', text: `Analisis isu **"${isu.nama}"** selesai. Tanyakan apa saja — distribusi platform, sentimen, aktor penyebar, atau minta saya generate narasi counter.` }])
+    }, 1500)
+  }, [])
 
-  const handleSend = async () => {
+  const handleGenerate = async () => {
     const q = input.trim()
-    if (!q || isLoading) return
-    setMessages(prev => [...prev, { role: 'user', content: q }])
-    setInput('')
+    if (!q || isApiLoading) return
+
+    const matchedIsu = ISU_DETAIL_MAP[q] ?? Object.values(ISU_DETAIL_MAP).find(
+      d => q.toLowerCase().includes(d.nama.toLowerCase())
+    )
+
+    if (matchedIsu) {
+      setIsuDetail(matchedIsu)
+      setApiResult(null)
+      setIsuLoading(true)
+      setTimeout(() => {
+        setIsuAnalysis(buildIsuAnalysis(matchedIsu))
+        setIsuLoading(false)
+        setMessages([{ role: 'bot', text: `Analisis isu **"${matchedIsu.nama}"** selesai. Silakan tanyakan detail lebih lanjut.` }])
+      }, 1500)
+      return
+    }
+
+    setIsuDetail(null); setIsuAnalysis(null); setApiResult(null); setMessages([])
 
     const narasi = await runAnalyze(q, channel, tone)
     if (!narasi) return
 
-    const docsCount = session.retrievedDocs.length
-    setMessages(prev => [
-      ...prev,
-      {
-        role:     'assistant',
-        content:  `RESULT::${JSON.stringify({ isu: narasi.isu, narasi: narasi.narasi, key_points: narasi.key_points, docsCount })}`,
-        isResult: true,
-        query:    q,
-      },
-    ])
+    const data: ApiResult = { isu: narasi.isu, narasi: narasi.narasi, key_points: narasi.key_points, docsCount: sessionRef.current.retrievedDocs.length, query: q }
+    setApiResult(data)
+    setHistory(prev => [{ query: q, isu: narasi.isu }, ...prev.slice(0, 9)])
+    setMessages([{ role: 'bot', text: `Analisis selesai: **"${narasi.isu}"**. Saya siap menjawab pertanyaan lanjutan atau membantu generate narasi.` }])
   }
 
+  const handleReset = () => {
+    setIsuDetail(null); setIsuAnalysis(null); setApiResult(null)
+    setMessages([]); setInput(''); resetSession()
+  }
+
+  const handleGoToNarasi = async () => {
+    if (session.narasi) { navigate('narasi'); return }
+    const q = (isuDetail?.nama ?? apiResult?.isu ?? input).trim()
+    if (!q) return
+    setNarasiLoading(true)
+    await runAnalyze(q, channel, tone)
+    setNarasiLoading(false)
+    navigate('narasi')
+  }
+
+  const sendChat = async () => {
+    const q = chatInput.trim()
+    if (!q || chatLoading) return
+    setChatInput('')
+    setMessages(prev => [...prev, { role: 'user', text: q }])
+    setChatLoading(true)
+    await new Promise(r => setTimeout(r, 800))
+
+    let reply = ''
+    if (isuDetail) {
+      reply = getIsuChatReply(q, isuDetail)
+    } else if (apiResult) {
+      const lq = q.toLowerCase()
+      if (lq.includes('narasi') || lq.includes('generate'))
+        reply = `Ringkasan narasi:\n\n"${apiResult.narasi}"\n\nIngin saya generate versi formal untuk press release?`
+      else if (lq.includes('poin') || lq.includes('kunci'))
+        reply = `Poin utama:\n${apiResult.key_points.map((kp, i) => `${i + 1}. ${kp}`).join('\n')}`
+      else
+        reply = `Berdasarkan query "${apiResult.query}": ${apiResult.docsCount} dokumen relevan ditemukan. Isu utama: **${apiResult.isu}**. Ada yang ingin digali lebih dalam?`
+    } else {
+      reply = 'Silakan generate analisis terlebih dahulu dengan memasukkan isu di kolom input.'
+    }
+
+    setMessages(prev => [...prev, { role: 'bot', text: reply }])
+    setChatLoading(false)
+  }
+
+  const isLoading = isApiLoading || isuLoading
+
   return (
-    <div className="flex h-[calc(100vh-56px)] overflow-hidden">
-      {/* Left panel */}
-      <div className="w-[200px] bg-surface border-r border-border flex flex-col flex-shrink-0">
-        <div className="p-3">
-          <Button
-            className="w-full justify-center"
-            size="sm"
-            onClick={() => setMessages(prev => [prev[0]])}
-          >
-            <Plus size={13} /> Sesi Baru
-          </Button>
-        </div>
+    <div className="flex h-full overflow-hidden">
+      <ChatSidebar
+        channel={channel} tone={tone}
+        sessionId={session.sessionId}
+        history={history}
+        onChannelChange={setChannel}
+        onToneChange={setTone}
+      />
 
-        <div className="px-3 pb-2 space-y-3">
-          <div>
-            <div className="text-[9.5px] font-mono uppercase tracking-widest text-text-muted mb-1.5">Channel</div>
-            {CHANNEL_OPTIONS.map(opt => (
-              <label key={opt.value} className="flex items-center gap-2 py-1 cursor-pointer">
-                <input
-                  type="radio" name="channel" value={opt.value}
-                  checked={channel === opt.value}
-                  onChange={() => setChannel(opt.value)}
-                  className="accent-primary"
-                />
-                <span className="text-[11.5px] text-text-main">{opt.label}</span>
-              </label>
-            ))}
-          </div>
-          <div>
-            <div className="text-[9.5px] font-mono uppercase tracking-widest text-text-muted mb-1.5">Tone</div>
-            {TONE_OPTIONS.map(opt => (
-              <label key={opt.value} className="flex items-center gap-2 py-1 cursor-pointer">
-                <input
-                  type="radio" name="tone" value={opt.value}
-                  checked={tone === opt.value}
-                  onChange={() => setTone(opt.value)}
-                  className="accent-primary"
-                />
-                <span className="text-[11.5px] text-text-main">{opt.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-auto px-3 pb-3 text-[9px] font-mono text-text-muted">
-          {session.sessionId.slice(0, 16)}…
-        </div>
-      </div>
-
-      {/* Chat main */}
       <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-5">
+        <ChatInputPanel
+          input={input} isLoading={isLoading} hasResult={hasResult}
+          onInputChange={setInput} onGenerate={handleGenerate} onReset={handleReset}
+        />
 
-          {messages.map((msg, i) =>
-            msg.role === 'user' ? (
-              <div key={i} className="flex gap-3 flex-row-reverse self-end max-w-[820px]">
-                <div className="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User size={14} className="text-white" />
-                </div>
-                <div className="bg-accent border border-primary/30 rounded-xl px-4 py-3 text-[13.5px] leading-relaxed text-blue-900 font-medium">
-                  {msg.content}
-                </div>
-              </div>
-            ) : (
-              <div key={i} className="flex gap-3 max-w-[820px]">
-                <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot size={14} className="text-white" />
-                </div>
-                <div>
-                  {msg.isResult && msg.content.startsWith('RESULT::') ? (
-                    <ResultCard
-                      data={JSON.parse(msg.content.slice(8))}
-                      isLatest={i === messages.length - 1 && session.step === 'analyzed'}
-                      onViewNarasi={() => navigate('narasi')}
-                    />
-                  ) : (
-                    <div className="bg-surface border border-border rounded-xl px-4 py-3 text-[13.5px] leading-relaxed text-text-main">
-                      {msg.content}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          )}
-
+        <div className="flex-1 overflow-y-auto px-6 py-5">
           {isLoading && (
-            <div className="flex gap-3 max-w-[820px]">
-              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Bot size={14} className="text-white" />
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-text-muted">
+              <div className="flex items-center gap-3 px-5 py-3 bg-accent/60 border border-primary/20 rounded-xl text-[13px] text-primary font-medium">
+                <Spinner /> Mengambil konteks & menganalisis narasi…
               </div>
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-primary-dim border border-primary/20 rounded-lg text-[12.5px] text-blue-800 font-medium">
-                <Spinner />
-                Mengambil konteks dari database &amp; menganalisis narasi…
-              </div>
+              <p className="text-[10.5px] font-mono text-text-muted">Retrieval · Clustering · Sentiment Scoring</p>
             </div>
           )}
 
           {session.step === 'error' && session.errorMessage && (
-            <div className="flex gap-2 items-center text-[12.5px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+            <div className="flex gap-2 items-center text-[12.5px] text-danger bg-danger-dim border border-red-200 rounded-xl px-5 py-4">
               <AlertCircle size={14} /> {session.errorMessage}
             </div>
           )}
 
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input */}
-        <div className="px-8 pb-5 pt-4 border-t border-border bg-white">
-          <div className="text-[11px] font-mono text-text-muted mb-2">
-            Channel: <span className="text-primary font-semibold">{channel}</span>
-            {' · '}Tone: <span className="text-primary font-semibold">{tone}</span>
-            {session.retrievedDocs.length > 0 && (
-              <> · <span className="text-emerald-700">{session.retrievedDocs.length} dok. relevan</span></>
-            )}
-          </div>
-          <div className="flex gap-2.5 bg-surface border border-border rounded-xl px-4 py-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10 transition-all">
-            <textarea
-              className="flex-1 bg-transparent outline-none text-[13.5px] resize-none min-h-[20px] max-h-[120px] placeholder:text-text-muted"
-              placeholder="Tanyakan isu yang ingin dianalisis… (Enter untuk kirim)"
-              rows={1}
-              value={input}
-              disabled={isLoading}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-              }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={isLoading || !input.trim()}
-              className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white hover:bg-primary-hover transition-colors flex-shrink-0 self-end cursor-pointer disabled:opacity-40"
-            >
-              {isLoading ? <Spinner className="w-3.5 h-3.5" /> : <Send size={14} />}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Sub-component untuk tampilan hasil analisis
-function ResultCard({
-  data,
-  isLatest,
-  onViewNarasi,
-}: {
-  data: { isu: string; narasi: string; key_points: string[]; docsCount: number }
-  isLatest: boolean
-  onViewNarasi: () => void
-}) {
-  return (
-    <div>
-      <div className="bg-surface border border-border rounded-xl px-4 py-3 text-[13.5px] leading-relaxed text-text-main">
-        <p className="font-bold text-text-main mb-2">Analisis Isu: {data.isu}</p>
-        <p className="mb-2 text-[12px] font-mono text-text-muted">
-          Berdasarkan <strong className="text-primary">{data.docsCount} dokumen</strong> relevan yang ditemukan:
-        </p>
-        <p className="mb-3">{data.narasi}</p>
-        <div className="border-t border-border pt-3 mt-2 space-y-1">
-          {data.key_points.map((kp, j) => (
-            <div key={j} className="flex gap-2 text-[12.5px]">
-              <span className="text-primary font-bold">·</span>
-              <span>{kp}</span>
+          {!isLoading && !hasResult && session.step !== 'error' && (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-text-muted">
+              <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center">
+                <Zap size={22} className="text-text-muted" />
+              </div>
+              <p className="text-[13px]">Masukkan nama isu atau pertanyaan, lalu klik <strong className="text-primary">Analisis</strong></p>
+              <p className="text-[11px] font-mono">Atau pilih isu dari halaman <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate('sentimen')}>Analisis Sentimen</span></p>
             </div>
-          ))}
+          )}
+
+          {!isuLoading && isuDetail && isuAnalysis && (
+            <IsuDetailResult
+              isuDetail={isuDetail} isuAnalysis={isuAnalysis}
+              narasiLoading={narasiLoading}
+              onNavigate={navigate} onGoToNarasi={handleGoToNarasi}
+            />
+          )}
+
+          {!isApiLoading && apiResult && (
+            <ApiResultPanel
+              apiResult={apiResult} channel={channel} tone={tone}
+              onNavigate={navigate}
+            />
+          )}
         </div>
       </div>
-      {isLatest && (
-        <div className="flex gap-2 mt-2.5 flex-wrap items-center">
-          <RiskBadge level="tinggi" />
-          <Button size="sm" onClick={onViewNarasi}>
-            <FileText size={13} /> Lihat Dokumen Narasi
-          </Button>
-        </div>
-      )}
+
+      <ChatCompanion
+        messages={messages} chatInput={chatInput}
+        chatLoading={chatLoading} hasResult={hasResult}
+        onChatInputChange={setChatInput} onSend={sendChat}
+      />
     </div>
   )
 }

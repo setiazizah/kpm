@@ -1,4 +1,4 @@
-export type Page = 'dashboard' | 'konten' | 'chat' | 'narasi' | 'stratkom' | 'brief' | 'riwayat'
+export type Page = 'dashboard' | 'monitoring' | 'sentimen' | 'konten' | 'chat' | 'narasi' | 'stratkom' | 'brief' | 'riwayat' | 'labeling' | 'crawling'
 
 export type RiskLevel = 'tinggi' | 'sedang' | 'rendah'
 

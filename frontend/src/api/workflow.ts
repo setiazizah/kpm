@@ -19,15 +19,20 @@ import {
   dummyRevise,
   dummyExportContent,
 } from './dummyData'
+import { getToken } from '../auth/auth'
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 const USE_DUMMY = !BASE_URL
 
 async function post<T>(path: string, body: unknown): Promise<T> {
+  const token = getToken()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
   const res = await fetch(`${BASE_URL}${path}`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
+    method: 'POST',
+    headers,
+    body:   JSON.stringify(body),
   })
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText)
