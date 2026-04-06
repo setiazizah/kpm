@@ -1,0 +1,27 @@
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Environment variables
+.env
+
+# Browser profiles (persistent context for anti-detection)
+browser_profiles/
+
+# Debug output
+*.debug.html
+instagram_debug.html
+tiktok_debug.html
+debug_results.txt
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
