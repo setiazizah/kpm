@@ -1,6 +1,27 @@
-import { PIPELINE, SCHEDULER, MONITORED_KEYWORDS } from '../../data/crawling'
+import { PIPELINE, SCHEDULER } from '../../data/crawling'
+import type { KeywordItem, BatchRecord } from '../../types/crawler'
 
-export default function PipelinePanel() {
+interface Props {
+  keywords: KeywordItem[]
+  batches:  BatchRecord[]
+}
+
+export default function PipelinePanel({ keywords, batches }: Props) {
+  // Gunakan data pipeline default; bila ada batch nyata, hitung raw_data_count
+  const latestBatch = batches[0]
+  const rawCount    = latestBatch?.raw_data_count ?? null
+
+  const pipeline = rawCount !== null
+    ? PIPELINE.map(p =>
+        p.label === 'Raw Data (PostgreSQL)'
+          ? { ...p, val: rawCount, pct: Math.min(100, Math.round((rawCount / 6000) * 100)) }
+          : p
+      )
+    : PIPELINE
+
+  const displayKeywords = keywords.length > 0 ? keywords : null
+  const extraCount      = keywords.length > 10 ? keywords.length - 10 : null
+
   return (
     <div className="space-y-3.5">
       {/* Pipeline */}
@@ -10,7 +31,7 @@ export default function PipelinePanel() {
           <span className="text-[13px] font-semibold text-text-main">Pipeline PostgreSQL → Qdrant</span>
         </div>
         <div className="space-y-3">
-          {PIPELINE.map(p => (
+          {pipeline.map(p => (
             <div key={p.label}>
               <div className="flex justify-between mb-1.5">
                 <span className="text-[12.5px] text-text-main">{p.label}</span>
@@ -41,10 +62,23 @@ export default function PipelinePanel() {
       <div className="bg-white border border-border rounded-xl p-4">
         <div className="text-[10px] font-mono uppercase tracking-widest text-text-muted mb-2">Keyword Dipantau</div>
         <div className="flex flex-wrap gap-1.5">
-          {MONITORED_KEYWORDS.map(kw => (
-            <span key={kw} className="bg-surface border border-border text-[10.5px] font-mono px-2 py-0.5 rounded text-text-muted">{kw}</span>
+          {(displayKeywords ?? []).slice(0, 10).map(kw => (
+            <span key={kw.keyword_id} className="bg-surface border border-border text-[10.5px] font-mono px-2 py-0.5 rounded text-text-muted">
+              {kw.keyword_text}
+            </span>
           ))}
-          <span className="text-[10.5px] font-mono text-text-muted px-1">+37 lagi</span>
+          {displayKeywords === null && (
+            // fallback ke static saat API belum tersedia
+            ['PP TUNAS','BBM','judi online','banjir','hoaks vaksin','literasi digital','internet desa','komdigi','pelajar','subsidi'].map(kw => (
+              <span key={kw} className="bg-surface border border-border text-[10.5px] font-mono px-2 py-0.5 rounded text-text-muted">{kw}</span>
+            ))
+          )}
+          {extraCount !== null && (
+            <span className="text-[10.5px] font-mono text-text-muted px-1">+{extraCount} lagi</span>
+          )}
+          {displayKeywords === null && (
+            <span className="text-[10.5px] font-mono text-text-muted px-1">+37 lagi</span>
+          )}
         </div>
       </div>
     </div>

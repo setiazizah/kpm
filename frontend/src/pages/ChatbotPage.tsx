@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { Bot, User, Send, RefreshCw, Zap, MessageCircle, Sparkles } from 'lucide-react'
+import { Bot, User, Send, RefreshCw, Zap, MessageCircle, Sparkles, AlertCircle } from 'lucide-react'
+import { newSessionId } from '../api/workflow'
 
 interface ChatMsg {
   role: 'user' | 'bot'
@@ -7,115 +8,66 @@ interface ChatMsg {
   time: string
 }
 
-const FAQ: { keywords: string[]; answer: string }[] = [
-  {
-    keywords: ['kpm', 'apa itu kpm', 'tentang kpm'],
-    answer:
-      'KPM (Kehumasan dan Pemberitaan Masyarakat) adalah unit yang bertanggung jawab atas komunikasi publik, pemberitaan, dan manajemen informasi di lingkungan Kementerian Kominfo. KPM bekerja sama dengan AITF untuk menghadirkan platform intelijen berbasis data.',
-  },
-  {
-    keywords: ['aitf', 'apa itu aitf'],
-    answer:
-      'AITF (AI Task Force) adalah tim khusus yang mengembangkan solusi kecerdasan buatan untuk mendukung operasional pemerintahan, termasuk sistem analisis narasi dan monitoring isu publik ini.',
-  },
-  {
-    keywords: ['dashboard', 'overview', 'beranda'],
-    answer:
-      'Halaman Dashboard / Overview menampilkan ringkasan kondisi terkini: metrik sentimen publik, early warning isu berisiko tinggi, tren percakapan, dan isu-isu teratas yang sedang dipantau.',
-  },
-  {
-    keywords: ['monitoring', 'isu', 'pantau'],
-    answer:
-      'Halaman Monitoring Isu menampilkan daftar isu yang sedang dipantau secara real-time beserta label risiko (tinggi/sedang/rendah), platform sumber, dan tren percakapan. Anda dapat memfilter berdasarkan tanggal, platform, dan sentimen.',
-  },
-  {
-    keywords: ['sentimen', 'analisis sentimen', 'positif', 'negatif', 'netral'],
-    answer:
-      'Analisis Sentimen mengklasifikasikan konten menjadi tiga kategori: Positif, Netral, dan Negatif. Sistem menggunakan model NLP berbasis transformer yang dilatih dengan data teks Bahasa Indonesia.',
-  },
-  {
-    keywords: ['narasi', 'viewer narasi', 'generate narasi'],
-    answer:
-      'Viewer Narasi menampilkan narasi counter yang telah di-generate oleh sistem AI berdasarkan analisis isu. Narasi dapat diunduh dalam format DOCX atau PDF untuk keperluan distribusi ke media.',
-  },
-  {
-    keywords: ['strategi', 'stratkom', 'komunikasi'],
-    answer:
-      'Halaman Strategi Komunikasi menyediakan rekomendasi strategi penyebaran narasi: pemilihan platform, waktu optimal posting, tone komunikasi, dan target audiens berdasarkan analisis demografis.',
-  },
-  {
-    keywords: ['brief', 'executive brief', 'laporan'],
-    answer:
-      'Executive Brief adalah ringkasan eksekutif yang dapat dibagikan kepada pimpinan. Berisi poin-poin kritis, rekomendasi tindakan, dan analisis risiko dalam format yang ringkas dan mudah dipahami.',
-  },
-  {
-    keywords: ['crawling', 'crawler', 'data'],
-    answer:
-      'Sistem crawling mengumpulkan data dari berbagai platform: Twitter/X, Instagram, TikTok, dan portal berita online. Data diperbarui secara berkala dan diproses melalui pipeline NLP otomatis.',
-  },
-  {
-    keywords: ['labeling', 'label', 'anotasi'],
-    answer:
-      'Labeling UI digunakan oleh tim anotator untuk memberikan label manual pada data teks. Hasil labeling digunakan untuk melatih dan meningkatkan akurasi model AI yang digunakan di sistem.',
-  },
-  {
-    keywords: ['riwayat', 'dokumen', 'histori'],
-    answer:
-      'Riwayat Dokumen menyimpan semua narasi, brief, dan stratkom yang telah di-generate sebelumnya. Dokumen dapat diakses kembali, diunduh, atau dijadikan referensi untuk analisis lanjutan.',
-  },
-  {
-    keywords: ['tanya isu', 'chat', 'analisis isu'],
-    answer:
-      'Halaman "Tanya Isu" adalah chatbot analitik yang dapat menganalisis isu secara mendalam. Masukkan nama isu atau pertanyaan, dan sistem akan mengambil dokumen relevan dari database lalu menghasilkan analisis komprehensif beserta narasi counter.',
-  },
-  {
-    keywords: ['cara pakai', 'cara menggunakan', 'panduan', 'tutorial'],
-    answer:
-      'Cara menggunakan platform ini:\n1. Mulai dari Dashboard untuk melihat situasi terkini\n2. Buka Monitoring untuk memantau isu spesifik\n3. Gunakan "Tanya Isu" untuk analisis mendalam suatu topik\n4. Lihat Narasi & Stratkom untuk rekomendasi komunikasi\n5. Export ke Executive Brief untuk laporan pimpinan',
-  },
-  {
-    keywords: ['akurasi', 'seberapa akurat', 'model ai'],
-    answer:
-      'Model AI yang digunakan telah dilatih dengan jutaan data teks Bahasa Indonesia. Akurasi klasifikasi sentimen mencapai ~87% pada data uji. Namun, hasil analisis sebaiknya selalu diverifikasi oleh tim analis sebelum digunakan sebagai dasar keputusan.',
-  },
-  {
-    keywords: ['platform', 'sumber data', 'media sosial'],
-    answer:
-      'Sistem ini memantau data dari: Twitter/X, Instagram, TikTok, Facebook, YouTube, serta ratusan portal berita online dan media cetak digital di Indonesia.',
-  },
-]
+interface ChatHistory {
+  role: string
+  content: string
+}
+
+const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
 const QUICK_PROMPTS = [
-  'Apa itu KPM?',
-  'Bagaimana cara pakai?',
+  'Apa itu KPM × AITF?',
+  'Bagaimana cara pakai platform ini?',
   'Apa fungsi Monitoring Isu?',
-  'Jelaskan Analisis Sentimen',
-  'Cara generate narasi?',
+  'Jelaskan fitur Analisis Sentimen',
+  'Cara generate narasi counter?',
+  'Apa itu Executive Brief?',
 ]
-
-function getBotReply(question: string): string {
-  const q = question.toLowerCase()
-  const match = FAQ.find(f => f.keywords.some(k => q.includes(k)))
-  if (match) return match.answer
-  return `Maaf, saya belum memiliki jawaban spesifik untuk pertanyaan tersebut. Silakan coba tanya dengan kata kunci yang berbeda, atau hubungi tim KPM × AITF untuk bantuan lebih lanjut.\n\nContoh pertanyaan: "Apa itu KPM?", "Bagaimana cara pakai platform ini?", atau "Jelaskan fitur Monitoring Isu."`
-}
 
 function nowTime() {
   return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 }
 
+async function askAI(
+  message: string,
+  sessionId: string,
+  chatHistory: ChatHistory[],
+): Promise<string> {
+  if (!BASE_URL) {
+    // Fallback offline — tidak ada backend
+    return 'Backend belum tersedia. Pastikan server berjalan dan VITE_API_URL sudah diset.'
+  }
+  const res = await fetch(`${BASE_URL}/v1/workflow/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId, message, chat_history: chatHistory }),
+  })
+  if (!res.ok) {
+    const txt = await res.text().catch(() => res.statusText)
+    throw new Error(`API error (${res.status}): ${txt}`)
+  }
+  const data = await res.json()
+  if (data.status === 'error') throw new Error(data.reply ?? 'Terjadi kesalahan.')
+  return data.reply as string
+}
+
 export default function ChatbotPage() {
+  const [sessionId] = useState(() => newSessionId())
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       role: 'bot',
-      text: 'Halo! Saya **Asisten KPM × AITF**. Saya siap menjawab pertanyaan umum seputar platform ini, fitur-fiturnya, dan cara penggunaannya.\n\nSilakan ajukan pertanyaan Anda!',
+      text: 'Halo! Saya **Asisten KPM × AITF** berbasis AI. Saya siap menjawab pertanyaan tentang platform ini, isu komunikasi publik, atau fitur-fitur yang tersedia.\n\nSilakan ajukan pertanyaan Anda!',
       time: nowTime(),
     },
   ])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [input, setInput]       = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const endRef   = useRef<HTMLDivElement>(null)
+
+  // Riwayat untuk konteks AI (format OpenRouter)
+  const historyRef = useRef<ChatHistory[]>([])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -124,14 +76,33 @@ export default function ChatbotPage() {
   const send = async (text?: string) => {
     const q = (text ?? input).trim()
     if (!q || loading) return
+
     setInput('')
+    setError(null)
     const userMsg: ChatMsg = { role: 'user', text: q, time: nowTime() }
     setMessages(prev => [...prev, userMsg])
     setLoading(true)
-    await new Promise(r => setTimeout(r, 700 + Math.random() * 500))
-    const reply = getBotReply(q)
-    setMessages(prev => [...prev, { role: 'bot', text: reply, time: nowTime() }])
-    setLoading(false)
+
+    // Tambah ke riwayat sebelum kirim
+    historyRef.current = [...historyRef.current, { role: 'user', content: q }]
+
+    try {
+      const reply = await askAI(q, sessionId, historyRef.current.slice(-8))
+      setMessages(prev => [...prev, { role: 'bot', text: reply, time: nowTime() }])
+      // Tambah balasan bot ke riwayat
+      historyRef.current = [...historyRef.current, { role: 'assistant', content: reply }]
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(msg)
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        text: `Maaf, terjadi kesalahan: ${msg}`,
+        time: nowTime(),
+      }])
+    } finally {
+      setLoading(false)
+      inputRef.current?.focus()
+    }
   }
 
   return (
@@ -142,12 +113,12 @@ export default function ChatbotPage() {
           <MessageCircle size={17} className="text-white" />
         </div>
         <div>
-          <h1 className="text-[14px] font-bold text-text-main">Chatbot Umum</h1>
-          <p className="text-[11px] text-text-muted">Tanya apa saja tentang platform KPM × AITF</p>
+          <h1 className="text-[14px] font-bold text-text-main">Chatbot AI</h1>
+          <p className="text-[11px] text-text-muted">Asisten cerdas KPM × AITF — powered by OpenRouter</p>
         </div>
         <div className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-success/10 border border-success/20 rounded-full">
           <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-          <span className="text-[11px] font-medium text-success">Online</span>
+          <span className="text-[11px] font-medium text-success">AI Online</span>
         </div>
       </div>
 
@@ -190,6 +161,14 @@ export default function ChatbotPage() {
                 </div>
               </div>
             )}
+
+            {error && (
+              <div className="flex items-center gap-2 text-[12px] text-danger bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <AlertCircle size={13} className="flex-shrink-0" />
+                Pastikan backend berjalan dan <code className="font-mono bg-red-100 px-1 rounded">OPENROUTER_API_KEY</code> sudah diset di <code className="font-mono bg-red-100 px-1 rounded">.env</code>
+              </div>
+            )}
+
             <div ref={endRef} />
           </div>
 
@@ -202,7 +181,7 @@ export default function ChatbotPage() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); send() } }}
                 disabled={loading}
-                placeholder="Ketik pertanyaan Anda di sini…"
+                placeholder="Tanya apa saja tentang platform, isu publik, atau KPM × AITF…"
                 className="flex-1 bg-surface border border-border rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all placeholder:text-text-muted disabled:opacity-50"
               />
               <button
@@ -217,12 +196,12 @@ export default function ChatbotPage() {
             </div>
             <div className="text-[10px] font-mono text-text-muted mt-2 flex items-center gap-1.5">
               <Zap size={9} className="text-primary" />
-              Pertanyaan dijawab berdasarkan basis pengetahuan KPM × AITF
+              Dijawab oleh AI · model {(import.meta.env.VITE_API_URL ? 'via backend' : 'offline mode')}
             </div>
           </div>
         </div>
 
-        {/* FAQ Sidebar */}
+        {/* Sidebar Quick Prompts */}
         <div className="w-[260px] flex-shrink-0 border-l border-border bg-surface flex flex-col overflow-hidden">
           <div className="px-4 py-3.5 border-b border-border bg-white">
             <div className="flex items-center gap-2">
@@ -245,7 +224,7 @@ export default function ChatbotPage() {
 
           <div className="px-4 py-4 border-t border-border bg-white">
             <div className="text-[11px] text-text-muted leading-relaxed">
-              <strong className="text-text-main">Catatan:</strong> Chatbot ini hanya menjawab pertanyaan umum tentang platform. Untuk analisis isu spesifik, gunakan halaman{' '}
+              <strong className="text-text-main">Tips:</strong> Chatbot ini menggunakan AI generatif dan mengingat konteks percakapan. Untuk analisis isu mendalam & generate narasi/stratkom, gunakan{' '}
               <strong className="text-primary">Tanya Isu</strong>.
             </div>
           </div>

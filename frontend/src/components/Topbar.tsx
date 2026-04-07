@@ -43,7 +43,7 @@ export default function Topbar() {
       <h1 className="font-bold text-[15px] text-text-main flex-1">{titles[page]}</h1>
 
       {/* Range filter */}
-      <div className="flex gap-1 bg-accent p-[3px] rounded-lg">
+      {/* <div className="flex gap-1 bg-accent p-[3px] rounded-lg">
         {ranges.map(r => (
           <button
             key={r.key}
@@ -57,7 +57,7 @@ export default function Topbar() {
             {r.label}
           </button>
         ))}
-      </div>
+      </div> */}
 
       {/* Clock */}
       <span className="font-mono text-[11px] text-text-muted flex-shrink-0 min-w-[72px] text-right">
