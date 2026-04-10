@@ -12,3 +12,8 @@ qdrant-client==1.11.1
 python-dotenv==1.0.1
 pydantic==2.9.2
 httpx==0.27.2
+
+# Embedding model (download ~470MB pertama kali)
+sentence-transformers==3.0.1
+
+
